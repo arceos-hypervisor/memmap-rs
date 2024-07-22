@@ -10,6 +10,12 @@ use std::{io, ptr};
     target_os = "android"
 ))]
 const MAP_STACK: libc::c_int = libc::MAP_STACK;
+#[cfg(any(
+    all(target_os = "linux", not(target_arch = "mips")),
+    target_os = "freebsd",
+    target_os = "android"
+))]
+const MAP_HUGETLB: libc::c_int = libc::MAP_HUGETLB;
 
 #[cfg(not(any(
     all(target_os = "linux", not(target_arch = "mips")),
@@ -17,6 +23,12 @@ const MAP_STACK: libc::c_int = libc::MAP_STACK;
     target_os = "android"
 )))]
 const MAP_STACK: libc::c_int = 0;
+#[cfg(not(any(
+    all(target_os = "linux", not(target_arch = "mips")),
+    target_os = "freebsd",
+    target_os = "android"
+)))]
+const MAP_HUGETLB: libc::c_int = 0;
 
 pub struct MmapInner {
     ptr: *mut libc::c_void,
@@ -107,12 +119,13 @@ impl MmapInner {
     }
 
     /// Open an anonymous memory map.
-    pub fn map_anon(len: usize, stack: bool) -> io::Result<MmapInner> {
+    pub fn map_anon(len: usize, stack: bool, huge_tlb: bool) -> io::Result<MmapInner> {
         let stack = if stack { MAP_STACK } else { 0 };
+        let huge_tlb = if huge_tlb { MAP_HUGETLB } else { 0 };
         MmapInner::new(
             len,
             libc::PROT_READ | libc::PROT_WRITE,
-            libc::MAP_SHARED | libc::MAP_ANON | stack,
+            libc::MAP_SHARED | libc::MAP_ANON | stack | huge_tlb,
             -1,
             0,
         )

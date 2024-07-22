@@ -45,6 +45,7 @@ pub struct MmapOptions {
     offset: u64,
     len: Option<usize>,
     stack: bool,
+    huge_tlb: bool,
 }
 
 impl MmapOptions {
@@ -161,6 +162,27 @@ impl MmapOptions {
     /// ```
     pub fn stack(&mut self) -> &mut Self {
         self.stack = true;
+        self
+    }
+
+    /// Configures the anonymous memory map to be huge page mapping.
+    ///
+    /// This option corresponds to the `MAP_HUGETLB` flag on Linux.
+    ///
+    /// This option has no effect on file-backed memory maps.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use memmap::MmapOptions;
+    ///
+    /// # fn main() -> std::io::Result<()> {
+    /// let huge_tlb = MmapOptions::new().huge_tlb().len(4096).map_anon();
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn huge_tlb(&mut self) -> &mut Self {
+        self.huge_tlb = true;
         self
     }
 
@@ -283,7 +305,8 @@ impl MmapOptions {
     ///
     /// This method returns an error when the underlying system call fails.
     pub fn map_anon(&self) -> Result<MmapMut> {
-        MmapInner::map_anon(self.len.unwrap_or(0), self.stack).map(|inner| MmapMut { inner: inner })
+        MmapInner::map_anon(self.len.unwrap_or(0), self.stack, self.huge_tlb)
+            .map(|inner| MmapMut { inner: inner })
     }
 }
 
